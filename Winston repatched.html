@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Boss Rush: Tactical Edition</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --tile-go: #e2e8f0;
+            --tile-attack: #ef4444;
+            --tile-shop: #3b82f6;
+            --tile-danger: #a855f7;
+            --tile-medic: #10b981;
+            --tile-lucky: #f59e0b;
+            --tile-lair: #1e1b4b;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 6px;
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(0px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(2px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(2px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(0deg); }
+        }
+
+        .shake-effect { animation: shake 0.5s; }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 412px;
+            gap: 6px;
+        }
+
+        #menu-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 412px;
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            gap: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .menu-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-label {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .menu-btn {
+            flex: 1;
+            background: #334155;
+            color: white;
+            border: 2px solid transparent;
+            padding: 10px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .menu-btn.selected {
+            background: #2563eb;
+            border-color: #60a5fa;
+        }
+
+        #diff-explainer {
+            margin-top: 4px;
+            padding: 8px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            line-height: 1.4;
+            text-align: left;
+            border-left: 3px solid #f59e0b;
+            min-height: 54px;
+        }
+
+        #header-stats {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.04);
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+            gap: 4px;
+        }
+
+        .player-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            padding: 4px;
+            border-radius: 5px;
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            border-top: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .player-card.active {
+            background: rgba(255,255,255,0.08);
+            border-top-color: #3b82f6;
+        }
+
+        .player-name-row {
+            font-size: 0.72rem;
+            font-weight: bold; 
+            display: flex; 
+            justify-content: space-between;
+        }
+
+        .hearts {
+            color: #ef4444;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        .inventory-slot {
+            font-size: 0.65rem;
+            color: #cbd5e1;
+            background: rgba(255,255,255,0.06);
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-top: 1px;
+            display: block;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        #board-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 4px;
+            aspect-ratio: 1 / 1;
+            width: 100%;
+            background: #1e293b;
+            padding: 4px;
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .tile {
+            border-radius: 6px;
+            padding: 3px 1px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            position: relative;
+            box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .tile .tile-icon { font-size: 1.3rem; margin: auto 0; }
+        .tile .tile-name {
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 0.5rem;
+            letter-spacing: 0.1px;
+            line-height: 1.1;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tile-go { background-color: var(--tile-go); color: #0f172a; }
+        .tile-attack { background-color: var(--tile-attack); }
+        .tile-shop { background-color: var(--tile-shop); }
+        .tile-danger { background-color: var(--tile-danger); }
+        .tile-medic { background-color: var(--tile-medic); }
+        .tile-lucky { background-color: var(--tile-lucky); }
+        .tile-lair { background-color: var(--tile-lair); border: 1.5px solid #ef4444; }
+
+        .tile-go.pulse-rescue { animation: pulse-glowing 1.5s infinite alternate; }
+        @keyframes pulse-glowing {
+            0% { box-shadow: 0 0 4px #2563eb, inset 0 0 6px #2563eb; }
+            100% { box-shadow: 0 0 12px #2563eb, inset 0 0 10px #3b82f6; }
+        }
+
+        #center-arena {
+            grid-column: 2 / 5;
+            grid-row: 2 / 5;
+            background-color: #0b0f19;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            padding: 6px;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        #boss-display {
+            width: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        #boss-name { font-size: 0.78rem; font-weight: bold; color: #f43f5e; }
+        #boss-hp-bar-container {
+            width: 100%;
+            height: 10px;
+            background: #334155;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #boss-hp-bar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ef4444, #f43f5e);
+            transition: width 0.3s;
+        }
+        #boss-hp-text { font-size: 0.7rem; font-weight: bold; }
+
+        #action-hub {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            width: 100%;
+        }
+
+        #dice-view {
+            width: 38px;
+            height: 38px;
+            background: white;
+            color: #0f172a;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: bold;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 95%;
+            text-transform: uppercase;
+        }
+
+        .action-btn:disabled { background: #475569 !important; color: #94a3b8 !important; cursor: not-allowed; }
+        .rules-link { font-size: 0.75rem; color: #60a5fa; text-decoration: underline; font-weight: bold; }
+        #game-log { font-size: 0.68rem; color: #e2e8f0; text-align: center; max-height: 24px; overflow-y: auto; width: 100%; font-style: italic; }
+
+        .token-space {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            display: flex;
+            gap: 1px;
+            z-index: 10;
+            flex-wrap: wrap;
+            max-width: 90%;
+            justify-content: flex-end;
+        }
+
+        .token {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            font-weight: bold;
+            color: white;
+            border: 1px solid white;
+            flex-shrink: 0;
+        }
+
+        .token.knocked-out { background: #64748b !important; opacity: 0.5; text-decoration: line-through; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.94);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: #1e293b;
+            padding: 14px;
+            border-radius: 12px;
+            width: 92%;
+            max-width: 360px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+
+        .rules-body {
+            text-align: left; 
+            max-height: 55vh; 
+            overflow-y: auto; 
+            font-size: 0.8rem; 
+            line-height: 1.4;
+            color: #cbd5e1;
+        }
+
+        .shop-grid { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.04);
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            text-align: left;
+        }
+        .shop-item button { background: #f59e0b; color: #0f172a; border: none; padding: 4px 8px; font-weight: bold; border-radius: 4px; }
+        .shop-item button:disabled { background: #475569; color: #94a3b8; }
+
+        .choice-buttons { display: flex; gap: 8px; margin-top: 10px; }
+        .choice-btn { color: white; border: none; padding: 10px; font-weight: bold; font-size: 0.85rem; border-radius: 6px; flex: 1; }
+
+        #banner-alert {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #1e1b4b, #311042);
+            border: 2px solid #ef4444;
+            padding: 20px;
+            border-radius: 12px;
+            z-index: 200;
+            text-align: center;
+            width: 88%;
+            max-width: 340px;
+        }
+
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            font-size: 1.2rem;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 50;
+            pointer-events: none;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.8); opacity: 1; }
+            100% { transform: translateY(-40px) scale(1.1); opacity: 0; }
+        }
+        .dmg-text { color: #ef4444; text-shadow: 0 0 4px black; }
+        .gold-text { color: #f59e0b; text-shadow: 0 0 4px black; }
+        .heal-text { color: #10b981; text-shadow: 0 0 4px black; }
+    </style>
+</head>
+<body>
+
+<div id="menu-container">
+    <h2 style="text-align:center; margin:0; color:#3b82f6;">⚔️ BOSS RUSH OMEGA</h2>
+    
+    <div class="menu-section">
+        <div class="menu-label">Squad Size</div>
+        <div class="btn-group">
+            <button class="menu-btn selected" id="btn-p1" onclick="setPlayers(1)">1 Player</button>
+            <button class="menu-btn" id="btn-p2" onclick="setPlayers(2)">2 Players</button>
+            <button class="menu-btn" id="btn-p3" onclick="setPlayers(3)">3 Players</button>
+        </div>
+    </div>
+
+    <div class="menu-section">
+        <div class="menu-label">Difficulty Strategy</div>
+        <div class="btn-group">
+            <button class="menu-btn" id="btn-diff-easy" onclick="setDifficulty('easy')">Easy</button>
+            <button class="menu-btn selected" id="btn-diff-med" onclick="setDifficulty('medium')">Medium</button>
+            <button class="menu-btn" id="btn-diff-hard" onclick="setDifficulty('hard')">Hard</button>
+        </div>
+        <div id="diff-explainer">🟡 <strong>Medium Mode:</strong> Start with 0g. Normal danger tiles deal 2 damage (Dodge on 5-6). Boss Lair deals 3 damage (Dodge on 6 only). Boss HP: 10/15/20.</div>
+    </div>
+
+    <button class="action-btn" id="launch-btn" style="padding:12px; margin-top:5px;" onclick="startGameEngine()">Launch Campaign</button>
+</div>
+
+<div id="game-container" style="display:none;">
+    <div id="header-stats"></div>
+
+    <div id="board-grid">
+        <div class="tile tile-medic" style="grid-column: 1; grid-row: 1;" id="tile-5">
+            <span class="tile-name">Medic Stn</span><span class="tile-icon">🏥</span>
+        </div>
+        <div class="tile tile-attack" style="grid-column: 2; grid-row: 1;" id="tile-6">
+            <span class="tile-name">Attack</span><span class="tile-icon">⚔️</span>
+        </div>
+        <div class="tile tile-lucky" style="grid-column: 3; grid-row: 1;" id="tile-7">
+            <span class="tile-name">Lucky</span><span class="tile-icon">🎲</span>
+        </div>
+        <div class="tile tile-danger" style="grid-column: 4; grid-row: 1;" id="tile-8">
+            <span class="tile-name">Danger</span><span class="tile-icon">💀</span>
+        </div>
+        <div class="tile tile-lucky" style="grid-column: 5; grid-row: 1;" id="tile-9">
+            <span class="tile-name">Casino</span><span class="tile-icon">🎰</span>
+        </div>
+        <div class="tile tile-shop" style="grid-column: 5; grid-row: 2;" id="tile-10">
+            <span class="tile-name">Shop</span><span class="tile-icon">🛒</span>
+        </div>
+        <div class="tile tile-attack" style="grid-column: 5; grid-row: 3;" id="tile-11">
+            <span class="tile-name">Attack</span><span class="tile-icon">⚔️</span>
+        </div>
+        <div class="tile tile-medic" style="grid-column: 5; grid-row: 4;" id="tile-12">
+            <span class="tile-name">Rest Stop</span><span class="tile-icon">💚</span>
+        </div>
+        <div class="tile tile-lair" style="grid-column: 5; grid-row: 5;" id="tile-13">
+            <span class="tile-name" id="lair-name">Lair</span><span class="tile-icon">👹</span>
+        </div>
+        <div class="tile tile-danger" style="grid-column: 4; grid-row: 5;" id="tile-14">
+            <span class="tile-name">Danger</span><span class="tile-icon">💀</span>
+        </div>
+        <div class="tile tile-lucky" style="grid-column: 3; grid-row: 5;" id="tile-15">
+            <span class="tile-name">Lucky</span><span class="tile-icon">🎲</span>
+        </div>
+        <div class="tile tile-attack" style="grid-column: 2; grid-row: 5;" id="tile-16">
+            <span class="tile-name">Attack</span><span class="tile-icon">⚔️</span>
+        </div>
+        <div class="tile tile-go" style="grid-column: 1; grid-row: 5;" id="tile-1">
+            <span class="tile-name">START (GO)</span><span class="tile-icon">🏁</span>
+        </div>
+        <div class="tile tile-danger" style="grid-column: 1; grid-row: 4;" id="tile-2">
+            <span class="tile-name">Danger</span><span class="tile-icon">💀</span>
+        </div>
+        <div class="tile tile-shop" style="grid-column: 1; grid-row: 3;" id="tile-3">
+            <span class="tile-name">Shop</span><span class="tile-icon">🛒</span>
+        </div>
+        <div class="tile tile-attack" style="grid-column: 1; grid-row: 2;" id="tile-4">
+            <span class="tile-name">Attack</span><span class="tile-icon">⚔️</span>
+        </div>
+
+        <div id="center-arena">
+            <div id="boss-display">
+                <div id="boss-name">BOSS TRACKER</div>
+                <div id="boss-hp-bar-container"><div id="boss-hp-bar"></div></div>
+                <div id="boss-hp-text">HP: 0 / 0</div>
+            </div>
+            <div id="action-hub">
+                <div id="dice-view">⚀</div>
+                <button class="action-btn" id="main-action-btn" onclick="handleMainAction()">Roll</button>
+                <div class="rules-link" onclick="openRulesModal()">📋 Rulebook</div>
+            </div>
+            <div id="game-log">Booting engine...</div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="rules-modal">
+    <div class="modal-content">
+        <h3 style="color:#3b82f6; margin-top:0;">📋 Tactical Rulebook</h3>
+        <div class="rules-body">
+            <p><strong>🎯 Objective:</strong> Defeat all 3 boss tiers as a team without getting wiped out.</p>
+            <p><strong>🏁 Corner 1 (START / GO):</strong> Pass or land here to gather a +5 Gold paycheck and instantly revive all fallen co-op teammates to max health!</p>
+            <p><strong>🏥 Corner 2 (Grand Medic):</strong> A guaranteed safe haven tile that completely restores all 5 of your hearts.</p>
+            <p><strong>🎰 Corner 3 (Lucky Casino):</strong> Gives you a choice to roll a second movement dice immediately or pocket a flat +5 Gold bonus.</p>
+            <p><strong>👹 Corner 4 (Boss Lair):</strong> Loop 1 traps you in a mini-boss battle. Subsequent loops deal a crushing 3 Hearts of damage (Dodge only on a raw 6!).</p>
+            <p><strong>💰 Combat & Economy:</strong> Landing on Red tiles awards 1 flat Gold per strike. Spend Gold at Shops to manage your item storage (Max 1 item per player).</p>
+        </div>
+        <button class="action-btn" style="background:#475569; margin-top:10px; width:100%;" onclick="closeRulesModal()">Close</button>
+    </div>
+</div>
+
+<div class="modal" id="shop-modal">
+    <div class="modal-content">
+        <h3>🛒 Item Shop</h3>
+        <div class="shop-grid">
+            <div class="shop-item">
+                <div><strong>Elixir</strong> (+1 ❤️)<br><small>Heal item</small></div>
+                <button id="btn-buy-elixir" onclick="buyItem('Elixir', 5)">🪙 5g</button>
+            </div>
+            <div class="shop-item">
+                <div><strong>Smoke Bomb</strong> (💨)<br><small>Auto-blocks failed dodge</small></div>
+                <button id="btn-buy-smoke" onclick="buyItem('Smoke Bomb', 7)">🪙 7g</button>
+            </div>
+            <div class="shop-item">
+                <div><strong>Golden Die</strong> (✨)<br><small>Forces a max 6 attack</small></div>
+                <button id="btn-buy-goldendie" onclick="buyItem('Golden Die', 10)">🪙 10g</button>
+            </div>
+            <div class="shop-item">
+                <div><strong>Sword</strong> (⚔️)<br><small>Permanent +2 Dmg Passive</small></div>
+                <button id="btn-buy-sword" onclick="buyItem('Sword', 13)">🪙 13g</button>
+            </div>
+            <div class="shop-item">
+                <div><strong>Wand</strong> (🔮)<br><small>1x Use: Doubles next roll value</small></div>
+                <button id="btn-buy-wand" onclick="buyItem('Wand', 15)">🪙 15g</button>
+            </div>
+        </div>
+        <button class="action-btn" style="background:#475569;" onclick="closeShop()">Exit Shop</button>
+    </div>
+</div>
+
+<div class="modal" id="choice-modal">
+    <div class="modal-content">
+        <h3 id="choice-title">Encounter</h3>
+        <p id="choice-desc">Select resolution path:</p>
+        <div class="choice-buttons">
+            <button class="choice-btn" style="background:#10b981;" id="choice-opt1" onclick="resolveChoice(1)"></button>
+            <button class="choice-btn" style="background:#f59e0b;" id="choice-opt2" onclick="resolveChoice(2)"></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="revive-modal">
+    <div class="modal-content">
+        <h2>❤️ Defeat Avoided?</h2>
+        <p>Spend 10 Gold from your bank to execute an emergency revive back to 1 Heart?</p>
+        <div class="choice-buttons">
+            <button class="choice-btn" style="background:#10b981;" onclick="executeSoloRevive(true)">Yes (-10g)</button>
+            <button class="choice-btn" style="background:#475569;" onclick="executeSoloRevive(false)">No (Game Over)</button>
+        </div>
+    </div>
+</div>
+
+<div id="banner-alert">
+    <h2 id="banner-title" style="color:#ef4444; margin:0;">ALERT</h2>
+    <p id="banner-desc">Description</p>
+    <button class="action-btn" id="banner-close-btn" onclick="dismissBanner()">Continue</button>
+</div>
+
+<script>
+    // System Layout Constant Metrics - FIXED CRASH CULPRIT!
+    const TOTAL_TILES = 16;
+
+    let configPlayers = 1;
+    let configDifficulty = 'medium';
+    
+    let activePlayersList = [];
+    let bossDeck = [];
+    
+    let currentBossIdx = 0;
+    let currentPlayerIdx = 0;
+    let currentPhase = "ROLL_MOVEMENT";
+    let lairTriggered = false;
+    const diceFaces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+
+    function setPlayers(num) {
+        configPlayers = num;
+        document.getElementById('btn-p1').className = `menu-btn ${num===1?'selected':''}`;
+        document.getElementById('btn-p2').className = `menu-btn ${num===2?'selected':''}`;
+        document.getElementById('btn-p3').className = `menu-btn ${num===3?'selected':''}`;
+    }
+
+    function setDifficulty(mode) {
+        configDifficulty = mode;
+        document.getElementById('btn-diff-easy').className = `menu-btn ${mode==='easy'?'selected':''}`;
+        document.getElementById('btn-diff-med').className = `menu-btn ${mode==='medium'?'selected':''}`;
+        document.getElementById('btn-diff-hard').className = `menu-btn ${mode==='hard'?'selected':''}`;
+        
+        const explainerBox = document.getElementById('diff-explainer');
+        if (mode === 'easy') {
+            explainerBox.style.borderLeftColor = "#10b981";
+            explainerBox.innerHTML = `🟢 <strong>Easy Mode:</strong> Start with 5g safety net. Normal danger tiles deal 1 damage (Dodge on 4-6). Boss Lair deals 2 damage (Dodge on 5-6). Boss HP: 8/12/16.`;
+        } else if (mode === 'medium') {
+            explainerBox.style.borderLeftColor = "#f59e0b";
+            explainerBox.innerHTML = `🟡 <strong>Medium Mode:</strong> Start with 0g. Normal danger tiles deal 2 damage (Dodge on 5-6). Boss Lair deals 3 damage (Dodge on 6 only). Boss HP: 10/15/20.`;
+        } else if (mode === 'hard') {
+            explainerBox.style.borderLeftColor = "#ef4444";
+            explainerBox.innerHTML = `🔴 <strong>Hard Mode:</strong> Start with 0g. Normal danger tiles require a straight 6 to dodge. Boss Lair deals 4 damage with NO dodge allowed! Boss HP: 15/25/35. Shop costs +2g extra.`;
+        }
+    }
+
+    function startGameEngine() {
+        document.querySelectorAll('.token').forEach(el => el.remove());
+        
+        activePlayersList = [];
+        const names = ["Winston", "Doug", "Guest"];
+        const colors = ["#3b82f6", "#ef4444", "#10b981"];
+        const labels = ["W", "D", "G"];
+        const startingGold = configDifficulty === 'easy' ? 5 : 0;
+
+        for(let i=0; i<configPlayers; i++) {
+            activePlayersList.push({
+                id: i, name: names[i], color: colors[i], label: labels[i],
+                position: 1, hearts: 5, gold: startingGold, item: null, isKnockedOut: false
+            });
+        }
+
+        if(configDifficulty === 'easy') {
+            bossDeck = [{name:"👹 Orc Scout", hp:8, maxHp:8},{name:"🐉 Fire Wyrm", hp:12, maxHp:12},{name:"🐙 Kraken", hp:16, maxHp:16}];
+            document.getElementById("tile-13").style.backgroundColor = "var(--tile-lair)";
+            document.getElementById("lair-name").innerText = "Lair";
+        } else if(configDifficulty === 'medium') {
+            bossDeck = [{name:"👹 Orc Warlord", hp:10, maxHp:10},{name:"🐉 Fire Drake", hp:15, maxHp:15},{name:"🐙 Kraken Lord", hp:20, maxHp:20}];
+            document.getElementById("tile-13").style.backgroundColor = "var(--tile-lair)";
+            document.getElementById("lair-name").innerText = "Lair";
+        } else {
+            bossDeck = [{name:"👹 Omega Orc", hp:15, maxHp:15},{name:"🐉 World Breaker", hp:25, maxHp:25},{name:"🐙 Cthulhu Deity", hp:35, maxHp:35}];
+            document.getElementById("tile-13").style.backgroundColor = "#b91c1c";
+            document.getElementById("lair-name").innerText = "🚨 OMEGA LAIR";
+        }
+
+        currentBossIdx = 0;
+        currentPlayerIdx = 0;
+        currentPhase = "ROLL_MOVEMENT";
+        lairTriggered = (configDifficulty === 'hard');
+
+        buildHUD();
+        document.getElementById("menu-container").style.display = "none";
+        document.getElementById("game-container").style.display = "flex";
+        
+        activePlayersList.forEach(p => appendTokenToTile(p.id, 1));
+        logMessage(`${activePlayersList[0].name}'s turn. Roll to move!`);
+        updateUI();
+    }
+
+    function buildHUD() {
+        const container = document.getElementById("header-stats");
+        container.innerHTML = "";
+        activePlayersList.forEach(p => {
+            container.innerHTML += `
+                <div class="player-card" id="card-p${p.id}">
+                    <div class="player-name-row"><span>${p.name}</span><span class="gold-count" id="p${p.id}-gold">🪙 0</span></div>
+                    <div class="hearts" id="p${p.id}-hearts">❤️❤️❤️❤️❤️</div>
+                    <div id="p${p.id}-item-slot"><span class="inventory-slot" id="p${p.id}-item">Empty</span></div>
+                </div>
+            `;
+        });
+    }
+
+    function appendTokenToTile(playerId, position) {
+        const oldToken = document.getElementById(`token-${playerId}`);
+        if (oldToken) oldToken.remove();
+
+        const tileEl = document.getElementById(`tile-${position}`);
+        if (!tileEl) return;
+
+        let tokenBox = tileEl.querySelector(".token-space");
+        if (!tokenBox) {
+            tokenBox = document.createElement("div");
+            tokenBox.className = "token-space";
+            tileEl.appendChild(tokenBox);
+        }
+
+        const token = document.createElement("div");
+        token.id = `token-${playerId}`;
+        token.className = "token";
+        token.style.backgroundColor = activePlayersList[playerId].color;
+        token.innerText = activePlayersList[playerId].label;
+
+        if (activePlayersList[playerId].isKnockedOut) token.classList.add("knocked-out");
+        tokenBox.appendChild(token);
+    }
+
+    function openRulesModal() { document.getElementById("rules-modal").style.display = "flex"; }
+    function closeRulesModal() { document.getElementById("rules-modal").style.display = "none"; }
+    function closeShop() { document.getElementById("shop-modal").style.display = "none"; endTurn(); }
+
+    function updateUI() {
+        activePlayersList.forEach(p => {
+            const card = document.getElementById(`card-p${p.id}`);
+            if(card) card.className = `player-card ${currentPlayerIdx === p.id && !p.isKnockedOut ? 'active' : ''}`;
+            
+            const goldEl = document.getElementById(`p${p.id}-gold`);
+            if (goldEl) goldEl.innerText = `🪙 ${p.gold}`;
+            
+            const itemContainer = document.getElementById(`p${p.id}-item-slot`);
+            if(itemContainer) {
+                if(p.item) {
+                    if(p.item === "Elixir" && currentPlayerIdx === p.id && currentPhase === "ROLL_MOVEMENT" && p.hearts < 5) {
+                        itemContainer.innerHTML = `<span class="inventory-slot" style="background:#10b981; font-weight:bold;" onclick="useElixir(${p.id})">🧪 USE ELIXIR</span>`;
+                    } else {
+                        let displayIcons = { "Elixir":"🧪 Elixir", "Smoke Bomb":"💨 Smoke", "Sword":"⚔️ Sword", "Wand":"🔮 Wand", "Golden Die":"✨ Die" };
+                        itemContainer.innerHTML = `<span class="inventory-slot">${displayIcons[p.item] || p.item}</span>`;
+                    }
+                } else {
+                    itemContainer.innerHTML = `<span class="inventory-slot">Empty</span>`;
+                }
+            }
+
+            const heartsEl = document.getElementById(`p${p.id}-hearts`);
+            if (heartsEl) {
+                let heartsStr = "";
+                for(let i=0; i<5; i++) heartsStr += i < p.hearts ? "❤️" : "🖤";
+                heartsEl.innerText = heartsStr;
+            }
+
+            const t = document.getElementById(`token-${p.id}`);
+            if(t) p.isKnockedOut ? t.classList.add("knocked-out") : t.classList.remove("knocked-out");
+        });
+
+        if (currentBossIdx < bossDeck.length) {
+            const boss = bossDeck[currentBossIdx];
+            document.getElementById("boss-name").innerText = boss.name.toUpperCase();
+            const pct = Math.max(0, (boss.hp / boss.maxHp) * 100);
+            document.getElementById("boss-hp-bar").style.width = `${pct}%`;
+            document.getElementById("boss-hp-text").innerText = `HP: ${boss.hp} / ${boss.maxHp}`;
+        }
+
+        const anyoneDead = activePlayersList.some(p => p.isKnockedOut);
+        if(anyoneDead && configPlayers > 1) document.getElementById("tile-1").classList.add("pulse-rescue");
+        else document.getElementById("tile-1").classList.remove("pulse-rescue");
+
+        const mainBtn = document.getElementById("main-action-btn");
+        if (currentPhase === "ROLL_MOVEMENT") mainBtn.innerText = "Roll Move";
+        else if (currentPhase === "COMBAT_ROLL") mainBtn.innerText = "Attack!";
+        else if (currentPhase === "DODGE_ROLL") mainBtn.innerText = "Dodge!";
+        else if (currentPhase === "GAME_OVER") mainBtn.innerText = "Game Over";
+    }
+
+    function animateDice(callback) {
+        const mainBtn = document.getElementById("main-action-btn");
+        const diceEl = document.getElementById("dice-view");
+        
+        mainBtn.disabled = true;
+        diceEl.classList.add("rolling");
+        
+        let counter = 0;
+        let interval = setInterval(() => {
+            diceEl.innerText = diceFaces[Math.floor(Math.random() * 6)];
+            counter++;
+            if (counter > 5) {
+                clearInterval(interval);
+                diceEl.classList.remove("rolling");
+                mainBtn.disabled = false;
+                callback();
+            }
+        }, 70);
+    }
+
+    function handleMainAction() {
+        if (currentPhase === "ROLL_MOVEMENT") executeMovementStep();
+        else if (currentPhase === "COMBAT_ROLL") executeCombatStep();
+        else if (currentPhase === "DODGE_ROLL") executeDodgeStep();
+    }
+
+    function executeMovementStep() {
+        animateDice(() => {
+            let roll = Math.floor(Math.random() * 6) + 1;
+            document.getElementById("dice-view").innerText = diceFaces[roll - 1];
+            
+            const activePlayer = activePlayersList[currentPlayerIdx];
+            let oldPos = activePlayer.position;
+            let newPos = oldPos + roll;
+
+            if (newPos > TOTAL_TILES) {
+                newPos = newPos - TOTAL_TILES;
+                activePlayer.gold += 5;
+                spawnFloatingText(`+5g`, `tile-1`, "gold-text");
+                logMessage(`${activePlayer.name} looped! +5 Gold.`);
+
+                if(configPlayers > 1) {
+                    activePlayersList.forEach(p => {
+                        if (p.isKnockedOut) {
+                            p.isKnockedOut = false;
+                            p.hearts = 5;
+                            logMessage(`😇 Teammate ${p.name} revived!`);
+                        }
+                    });
+                }
+            }
+
+            activePlayer.position = newPos;
+            appendTokenToTile(activePlayer.id, newPos);
+            evaluateTileLanding(activePlayer, newPos);
+        });
+    }
+
+    function evaluateTileLanding(player, pos) {
+        const tileEl = document.getElementById(`tile-${pos}`);
+        const tileName = tileEl.querySelector(".tile-name").innerText;
+        logMessage(`${player.name} landed on ${tileName}.`);
+
+        if ([4, 6, 11, 16].includes(pos)) {
+            if (player.item === "Golden Die") {
+                logMessage(`✨ Golden Die automatically forces a max 6 roll!`);
+                executeCombatStep(true);
+            } else {
+                currentPhase = "COMBAT_ROLL";
+            }
+        } else if ([2, 8, 14].includes(pos)) {
+            currentPhase = "DODGE_ROLL";
+        } else if ([3, 10].includes(pos)) {
+            openShop();
+        } else if (pos === 5 || pos === 12) {
+            player.hearts = 5;
+            spawnFloatingText("MAX HEAL ❤️", `tile-${pos}`, "heal-text");
+            logMessage(`${player.name} fully healed to 5 hearts!`);
+            endTurn();
+        } else if (pos === 7 || pos === 15) {
+            triggerChoiceModal("Lucky Roll Tile!", "Select bonus benefit:", "Roll Again", "Pocket +3 Gold", () => {
+                currentPhase = "ROLL_MOVEMENT"; updateUI();
+            }, () => {
+                player.gold += 3; spawnFloatingText("+3g", `tile-${pos}`, "gold-text"); endTurn();
+            });
+        } else if (pos === 9) {
+            triggerChoiceModal("🎰 Casino Corner!", "Take a tactical perk:", "Double Move Roll", "Pocket +5 Gold", () => {
+                currentPhase = "ROLL_MOVEMENT"; updateUI();
+            }, () => {
+                player.gold += 5; spawnFloatingText("+5g", `tile-${pos}`, "gold-text"); endTurn();
+            });
+        } else if (pos === 13) {
+            currentPhase = "DODGE_ROLL";
+            if (!lairTriggered) {
+                lairTriggered = true;
+                document.getElementById("tile-13").style.backgroundColor = "#b91c1c";
+                document.getElementById("lair-name").innerText = "🚨 OMEGA LAIR";
+                logMessage("💥 Ambush in the Lair! Roll a 6 to dodge.");
+                tileEl.dataset.dangerLevel = "1";
+            } else {
+                logMessage("🔥 CRITICAL OMEGA ATTACK! Roll a 6 or suffer 3 Damage!");
+                tileEl.dataset.dangerLevel = "2";
+            }
+        } else {
+            endTurn();
+        }
+        updateUI();
+    }
+
+    function executeCombatStep(isForcedMax = false) {
+        const player = activePlayersList[currentPlayerIdx];
+
+        const processDamage = (baseRoll) => {
+            let damage = baseRoll;
+            const boss = bossDeck[currentBossIdx];
+
+            if (player.item === "Wand") {
+                damage = damage * 2;
+                player.item = null;
+                logMessage("🔮 Wand shattered! Damage roll multiplied by x2.");
+            }
+            if (player.item === "Sword") {
+                damage += 2;
+                logMessage("⚔️ Sword Strike! Added +2 permanent weapon damage.");
+            }
+
+            boss.hp -= damage;
+            player.gold += 1;
+
+            triggerScreenShake();
+            spawnFloatingText(`-${damage} HP`, "boss-display", "dmg-text");
+            spawnFloatingText(`+1g`, `tile-${player.position}`, "gold-text");
+            logMessage(`⚔️ ${player.name} dealt ${damage} total damage! Earned 1 Gold.`);
+
+            if (player.item === "Golden Die") player.item = null;
+
+            if (boss.hp <= 0) {
+                handleBossDefeat();
+            } else {
+                currentPhase = "ROLL_MOVEMENT";
+                endTurn();
+            }
+        };
+
+        if (isForcedMax) {
+            document.getElementById("dice-view").innerText = "⚅";
+            processDamage(6);
+        } else {
+            animateDice(() => {
+                let baseRoll = Math.floor(Math.random() * 6) + 1;
+                document.getElementById("dice-view").innerText = diceFaces[baseRoll - 1];
+                processDamage(baseRoll);
+            });
+        }
+    }
+
+    function executeDodgeStep() {
+        animateDice(() => {
+            let roll = Math.floor(Math.random() * 6) + 1;
+            document.getElementById("dice-view").innerText = diceFaces[roll - 1];
+            
+            const player = activePlayersList[currentPlayerIdx];
+            const tileEl = document.getElementById(`tile-${player.position}`);
+            
+            let dmgCost = 2; 
+            let dodgeTarget = [5, 6]; 
+            
+            if (tileEl.id === "tile-13") {
+                dodgeTarget = [6]; 
+                dmgCost = (tileEl.dataset.dangerLevel === "2") ? 3 : 2;
+                if (configDifficulty === 'hard' && tileEl.dataset.dangerLevel === "2") {
+                    dodgeTarget = []; 
+                }
+            } else if (configDifficulty === 'hard') {
+                dodgeTarget = [6]; 
+            } else if (configDifficulty === 'easy') {
+                dodgeTarget = [4, 5, 6];
+                dmgCost = 1;
+            }
+
+            if (dodgeTarget.includes(roll)) {
+                spawnFloatingText("EVADED! 🛡️", `tile-${player.position}`, "heal-text");
+                logMessage(`🛡️ Clean Dodge! ${player.name} rolled ${roll} and blocked the damage.`);
+            } else {
+                if (player.item === "Smoke Bomb") {
+                    player.item = null;
+                    spawnFloatingText("EVADED! 💨", `tile-${player.position}`, "heal-text");
+                    logMessage("💨 Smoke Bomb deployed! Evaded attack safely.");
+                } else {
+                    player.hearts -= dmgCost;
+                    spawnFloatingText(`-${dmgCost} ❤️`, `tile-${player.position}`, "dmg-text");
+                    logMessage(`💔 Hit! ${player.name} lost ${dmgCost} heart(s).`);
+                    
+                    if (player.hearts <= 0) {
+                        player.hearts = 0;
+                        player.isKnockedOut = true;
+                        appendTokenToTile(player.id, player.position);
+                        handlePlayerDefeatState(player);
+                        return;
+                    }
+                }
+            }
+
+            currentPhase = "ROLL_MOVEMENT";
+            endTurn();
+        });
+    }
+
+    function handlePlayerDefeatState(player) {
+        if (configPlayers === 1) {
+            if (player.gold >= 10) {
+                document.getElementById("revive-modal").style.display = "flex";
+            } else {
+                logMessage(`🚨 ${player.name} hit 0 hearts and doesn't have 10 Gold!`);
+                triggerGameLoss();
+            }
+        } else {
+            logMessage(`🚨 ${player.name} KO'd! Partners must cross START to revive.`);
+            checkSquadWipeCondition();
+        }
+    }
+
+    function executeSoloRevive(answeredYes) {
+        document.getElementById("revive-modal").style.display = "none";
+        const player = activePlayersList[0];
+        if (answeredYes && player.gold >= 10) {
+            player.gold -= 10;
+            player.hearts = 1;
+            player.isKnockedOut = false;
+            logMessage("😇 Spent 10 Gold! Revived with 1 Heart.");
+            appendTokenToTile(player.id, player.position); 
+            currentPhase = "ROLL_MOVEMENT";
+            updateUI();
+        } else {
+            triggerGameLoss();
+        }
+    }
+
+    function checkSquadWipeCondition() {
+        const completelyWiped = activePlayersList.every(p => p.isKnockedOut);
+        if (completelyWiped) {
+            triggerGameLoss();
+        } else {
+            currentPhase = "ROLL_MOVEMENT";
+            endTurn();
+        }
+    }
+
+    function triggerGameLoss() {
+        triggerGlobalBanner("💀 CAMPAIGN DEFEAT", "Your party fell to the bosses! Revamp your strategy and try again.", false, true);
+        currentPhase = "GAME_OVER";
+        updateUI();
+    }
+
+    function handleBossDefeat() {
+        logMessage("🎉 Enemy vanquished!");
+        currentBossIdx++;
+        
+        if (currentBossIdx >= bossDeck.length) {
+            triggerGlobalBanner("👑 VICTORY ACHIEVED!", "Incredible! You completely cleared the gauntlet!", false, true);
+            currentPhase = "GAME_OVER";
+        } else {
+            const nextBoss = bossDeck[currentBossIdx];
+            triggerGlobalBanner("⚠️ NEW BOSS WARNING", `${nextBoss.name} enters arena loop! HP: ${nextBoss.maxHp}`, false, false);
+            currentPhase = "ROLL_MOVEMENT";
+            endTurn();
+        }
+        updateUI();
+    }
+
+    function endTurn() {
+        if(currentPhase === "GAME_OVER") return;
+        let checks = 0;
+        do {
+            currentPlayerIdx = (currentPlayerIdx + 1) % activePlayersList.length;
+            checks++;
+        } while (activePlayersList[currentPlayerIdx].isKnockedOut && checks < activePlayersList.length);
+
+        logMessage(`Turn: ${activePlayersList[currentPlayerIdx].name}`);
+        updateUI();
+    }
+
+    function openShop() {
+        const p = activePlayersList[currentPlayerIdx];
+        const markup = configDifficulty === 'hard' ? 2 : 0;
+        
+        document.getElementById("btn-buy-elixir").innerText = `🪙 ${5 + markup}g`;
+        document.getElementById("btn-buy-smoke").innerText = `🪙 ${7 + markup}g`;
+        document.getElementById("btn-buy-goldendie").innerText = `🪙 ${10 + markup}g`;
+        document.getElementById("btn-buy-sword").innerText = `🪙 ${13 + markup}g`;
+        document.getElementById("btn-buy-wand").innerText = `🪙 ${15 + markup}g`;
+
+        document.getElementById("btn-buy-elixir").disabled = p.gold < (5 + markup);
+        document.getElementById("btn-buy-smoke").disabled = p.gold < (7 + markup);
+        document.getElementById("btn-buy-goldendie").disabled = p.gold < (10 + markup);
+        document.getElementById("btn-buy-sword").disabled = p.gold < (13 + markup);
+        document.getElementById("btn-buy-wand").disabled = p.gold < (15 + markup);
+        document.getElementById("shop-modal").style.display = "flex";
+    }
+
+    function buyItem(name, cost) {
+        const p = activePlayersList[currentPlayerIdx];
+        const markup = configDifficulty === 'hard' ? 2 : 0;
+        const finalCost = cost + markup;
+        
+        if (p.gold >= finalCost) {
+            p.gold -= finalCost;
+            p.item = name;
+            logMessage(`🛒 Bought ${name}.`);
+            closeShop();
+        }
+    }
+
+    function useElixir(playerId) {
+        const p = activePlayersList[playerId];
+        if (p.item === "Elixir" && p.hearts < 5) {
+            p.hearts = Math.min(5, p.hearts + 1);
+            p.item = null;
+            spawnFloatingText("+1 ❤️", `header-stats`, "heal-text");
+            logMessage("🧪 Used Elixir (+1 Heart).");
+            updateUI();
+        }
+    }
+
+    let activeCb1 = null; let activeCb2 = null;
+    function triggerChoiceModal(title, desc, o1, o2, cb1, cb2) {
+        document.getElementById("choice-title").innerText = title;
+        document.getElementById("choice-desc").innerText = desc;
+        document.getElementById("choice-opt1").innerText = o1;
+        document.getElementById("choice-opt2").innerText = o2;
+        activeCb1 = cb1; activeCb2 = cb2;
+        document.getElementById("choice-modal").style.display = "flex";
+    }
+    function resolveChoice(id) {
+        document.getElementById("choice-modal").style.none = "none";
+        if(id === 1 && activeCb1) activeCb1();
+        if(id === 2 && activeCb2) activeCb2();
+    }
+
+    function triggerGlobalBanner(title, desc, hideBtn = false, isGameOver = false) {
+        document.getElementById("banner-title").innerText = title;
+        document.getElementById("banner-desc").innerText = desc;
+        
+        const btn = document.getElementById("banner-close-btn");
+        if(isGameOver) {
+            btn.innerText = "🔄 Main Menu / Restart";
+            btn.onclick = returnToMainMenu;
+            btn.style.display = "block";
+        } else {
+            btn.innerText = "BATTLE ON";
+            btn.onclick = dismissBanner;
+            btn.style.display = hideBtn ? "none" : "block";
+        }
+        document.getElementById("banner-alert").style.display = "block";
+    }
+
+    function dismissBanner() { document.getElementById("banner-alert").style.display = "none"; }
+    
+    function returnToMainMenu() {
+        document.getElementById("banner-alert").style.display = "none";
+        document.getElementById("game-container").style.display = "none";
+        document.getElementById("menu-container").style.display = "flex";
+    }
+
+    function spawnFloatingText(text, targetId, cssClass) {
+        const target = document.getElementById(targetId);
+        if(!target) return;
+        const r = target.getBoundingClientRect();
+        const f = document.createElement("div");
+        f.className = `floating-text ${cssClass}`;
+        f.innerText = text;
+        f.style.left = `${r.left + (r.width/2) - 10}px`;
+        f.style.top = `${r.top + (r.height/2) - 10}px`;
+        document.body.appendChild(f);
+        setTimeout(() => f.remove(), 1000);
+    }
+
+    function triggerScreenShake() {
+        const grid = document.getElementById("board-grid");
+        grid.classList.add("shake-effect");
+        setTimeout(() => grid.classList.remove("shake-effect"), 500);
+    }
+
+    function logMessage(msg) {
+        const b = document.getElementById("game-log");
+        b.innerHTML = msg;
+    }
+</script>
+
+</body>
+</html>
